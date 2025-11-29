@@ -23,7 +23,6 @@ CREATE TABLE product (
     Weight           REAL CHECK(Weight > 0),
     Warranty         VARCHAR(50),
     Dimensions       VARCHAR(50),
-    StockStatus      VARCHAR(20) DEFAULT 'In Stock' CHECK(StockStatus IN ('In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'))
 );
 
 ---------------------------------------------------------
@@ -154,7 +153,7 @@ CREATE TABLE giftCard (
 CREATE TABLE returnTable (
     ReturnID     INTEGER PRIMARY KEY AUTOINCREMENT,
     ReturnDate   DATE DEFAULT CURRENT_DATE,
-    ReturnAmount DECIMAL(10,2) CHECK(ReturnAmount >= 0),
+    RefundAmount DECIMAL(10,2) CHECK(RefundAmount >= 0),
     ReturnStatus VARCHAR(20) DEFAULT 'Pending' CHECK(ReturnStatus IN ('Pending', 'Approved', 'Rejected', 'Completed')),
     Reason       TEXT,
     PaymentID    INTEGER NOT NULL,

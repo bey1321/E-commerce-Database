@@ -1,3 +1,8 @@
+-- MySQL Insert Statements for E-commerce Database
+-- Make sure to run normal_Schema_MySQL.sql first
+
+USE ecommerce_db;
+
 -- ============================
 -- Country
 -- ============================
@@ -374,6 +379,21 @@ INSERT INTO cartProduct (CartID, ProductID, Quantity) VALUES
 (10, 10, 1);
 
 -- ============================
+-- ProductCartPrice
+-- ============================
+INSERT INTO ProductCartPrice (CartID, ProductID, PriceAtAdd) VALUES
+(1, 1, 24.99),   -- Wireless Mouse
+(2, 2, 39.99),   -- USB Keyboard
+(3, 3, 12.99),   -- HDMI Cable
+(4, 4, 49.99),   -- Laptop Stand
+(5, 5, 89.99),   -- Webcam HD
+(6, 6, 29.99),   -- USB Hub
+(7, 7, 19.99),   -- Phone Charger
+(8, 8, 79.99),   -- Bluetooth Speaker
+(9, 9, 129.99),  -- Gaming Headset
+(10, 10, 149.99); -- Portable SSD
+
+-- ============================
 -- CartDiscount
 -- ============================
 INSERT INTO cartDiscount (CartID, DiscountID, DiscountAmount) VALUES
@@ -616,7 +636,7 @@ INSERT INTO delivery (DeliveryDate, DeliveryTimeEstimate, DeliveryFee, DeliveryS
 -- ============================
 -- ReturnTable
 -- ============================
-INSERT INTO returnTable (ReturnAmount, ReturnStatus, Reason, PaymentID, OrderID, ProductID) VALUES
+INSERT INTO returnTable (RefundAmount, ReturnStatus, Reason, PaymentID, OrderID, ProductID) VALUES
 (29.99, 'Approved', 'Defective product', 1, 1, 1),
 (79.99, 'Pending', 'Changed mind', 2, 2, 2),
 (15.99, 'Rejected', 'Outside return window', 3, 3, 3),

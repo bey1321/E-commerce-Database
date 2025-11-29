@@ -1,8 +1,11 @@
+-- MySQL Update Statements for E-commerce Database
+USE ecommerce_db;
+
 /*****************************************************************************************
 UPDATE 1: Update a customer's first and last name
 ******************************************************************************************/
 UPDATE customer
-SET FirstName = 'Bethel', LastName = 'Habte'
+SET FirstName = 'Bethelhem', LastName = 'Habte'
 WHERE CustomerID = 1;
 
 
