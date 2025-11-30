@@ -1016,17 +1016,18 @@ def main():
                 if available_audit:
                     with st.expander("🔒 Quick Access: Audit & Security Tables", expanded=True):
                         st.markdown("**Audit Trail Tables:**")
-                        audit_cols = st.columns(3)
-                        for idx, audit_table in enumerate(available_audit):
+                        for audit_table in available_audit:
                             if audit_table != 'security_log':
-                                if audit_cols[idx % 3].button(f"📋 {audit_table}", key=f"quick_{audit_table}"):
+                                if st.button(f"📋 {audit_table}", key=f"quick_{audit_table}", use_container_width=True):
                                     st.session_state.selected_audit_table = audit_table
+                                    st.session_state.auto_read_mode = True
                                     st.rerun()
 
                         if 'security_log' in available_audit:
                             st.markdown("**Security Log:**")
                             if st.button("🔐 security_log", key="quick_security_log", use_container_width=True):
                                 st.session_state.selected_audit_table = 'security_log'
+                                st.session_state.auto_read_mode = True
                                 st.rerun()
 
             # Table selection
@@ -1056,9 +1057,20 @@ def main():
                 st.warning(f"⚠️ No operations available for table '{selected_table}' with your role")
                 crud_operation = None
             else:
+                # Auto-select "Read" if coming from quick access button
+                auto_read = st.session_state.get('auto_read_mode', False)
+                if auto_read and "Read" in available_operations:
+                    default_op_index = available_operations.index("Read")
+                    # Clear the flag after using
+                    if 'auto_read_mode' in st.session_state:
+                        del st.session_state.auto_read_mode
+                else:
+                    default_op_index = 0
+
                 crud_operation = st.radio(
                     "Select Operation",
                     available_operations,
+                    index=default_op_index,
                     key="crud_op"
                 )
         elif mode == "View Data":
