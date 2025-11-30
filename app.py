@@ -1,10 +1,9 @@
 """
-Streamlit + SQLAlchemy Dashboard
+Streamlit + SQLAlchemy Dashboard for MySQL
 Complete CRUD Operations and Advanced Visualizations
 """
 
 import streamlit as st
-import sqlite3
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -16,12 +15,25 @@ import re
 # DATABASE CONNECTION & HELPER FUNCTIONS
 # =====================================================
 
-DATABASE_PATH = "database.db"
+# MySQL Configuration
+MYSQL_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': 'MySQL@2025',
+    'database': 'ecommerce_db'
+}
 
 @st.cache_resource
 def get_engine():
-    """Create and cache SQLAlchemy engine"""
-    return create_engine(f"sqlite:///{DATABASE_PATH}")
+    """Create and cache SQLAlchemy engine for MySQL"""
+    from urllib.parse import quote_plus
+    password = quote_plus(MYSQL_CONFIG['password'])
+    connection_string = (
+        f"mysql+pymysql://{MYSQL_CONFIG['user']}:{password}"
+        f"@{MYSQL_CONFIG['host']}:{MYSQL_CONFIG['port']}/{MYSQL_CONFIG['database']}"
+    )
+    return create_engine(connection_string)
 
 def fetch_table_data(table_name):
     """Fetch all data from a specific table"""
@@ -81,7 +93,12 @@ def get_all_tables():
     try:
         engine = get_engine()
         inspector = inspect(engine)
-        return sorted(inspector.get_table_names())
+        # Filter out audit tables and views
+        all_tables = inspector.get_table_names()
+        # Exclude audit tables and system tables
+        excluded = ['customer_audit', 'card_audit', 'product_audit', 'orders_audit', 'payment_audit', 'security_log']
+        tables = [t for t in all_tables if t not in excluded and not t.endswith('_audit')]
+        return sorted(tables)
     except Exception as e:
         st.error(f"Error getting table names: {str(e)}")
         return []
@@ -101,7 +118,7 @@ def is_date_column(column_name):
 
 def is_numeric_column(column_type):
     """Check if column type is numeric"""
-    numeric_types = ['INTEGER', 'REAL', 'FLOAT', 'NUMERIC', 'DECIMAL']
+    numeric_types = ['INT', 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'BIGINT', 'DECIMAL', 'FLOAT', 'DOUBLE']
     return any(num_type in str(column_type).upper() for num_type in numeric_types)
 
 def get_next_id(table_name, id_column):
@@ -118,37 +135,33 @@ def get_next_id(table_name, id_column):
     except Exception:
         return 1
 
-def extract_check_constraint_values(column_info):
-    """Extract allowed values from CHECK constraint (e.g., CHECK(Gender IN ('Male', 'Female')))"""
+def get_check_constraint_values(table_name, column_name):
+    """Extract allowed values from CHECK constraint for MySQL"""
     try:
-        # Get the column definition from schema
         engine = get_engine()
-        table_name = column_info.get('table')
-        col_name = column_info.get('name')
-        
-        # Try to get constraint from sqlite_master
-        query = text(f"""
-            SELECT sql FROM sqlite_master 
-            WHERE type='table' AND name=:table_name
+        # Query to get CHECK constraints from information_schema
+        query = text("""
+            SELECT CHECK_CLAUSE
+            FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = :db_name
+            AND TABLE_NAME = :table_name
         """)
-        
+
         with engine.connect() as conn:
-            result = conn.execute(query, {'table_name': table_name})
-            row = result.fetchone()
-            
-            if row and row[0]:
-                sql = row[0]
-                # Look for CHECK constraint pattern like: Gender IN ('Male', 'Female')
-                import re
-                pattern = rf"{col_name}\s+[^,\)]*CHECK\s*\([^IN]*IN\s*\(([^)]+)\)"
-                match = re.search(pattern, sql, re.IGNORECASE)
-                
-                if match:
-                    values_str = match.group(1)
-                    # Extract quoted values
-                    values = re.findall(r"'([^']+)'", values_str)
-                    return values
-        
+            result = conn.execute(query, {'db_name': MYSQL_CONFIG['database'], 'table_name': table_name})
+
+            for row in result:
+                clause = row[0]
+                # Look for pattern like: Gender IN ('Male', 'Female')
+                if column_name.lower() in clause.lower():
+                    # Extract values within parentheses after IN
+                    match = re.search(rf"{column_name}\s+IN\s*\(([^)]+)\)", clause, re.IGNORECASE)
+                    if match:
+                        values_str = match.group(1)
+                        # Extract quoted values
+                        values = re.findall(r"'([^']+)'", values_str)
+                        return values
+
         return None
     except Exception as e:
         return None
@@ -172,18 +185,18 @@ def create_record(table_name):
             col_type = col['type']
 
             # Skip auto-increment IDs (primary key with INTEGER type)
-            is_auto_id = (col_name in pk_columns and 
-                         'INT' in str(col_type).upper() and 
-                         len(pk_columns) == 1)
-            
+            is_auto_id = (col_name in pk_columns and
+                         'INT' in str(col_type).upper() and
+                         len(pk_columns) == 1 and
+                         col.get('autoincrement', False))
+
             if is_auto_id:
                 next_id = get_next_id(table_name, col_name)
                 st.info(f"🔢 {col_name} (Auto-generated): **{next_id}**")
                 continue
 
             # Check for domain constraints (CHECK IN constraint)
-            col_info = {'table': table_name, 'name': col_name}
-            allowed_values = extract_check_constraint_values(col_info)
+            allowed_values = get_check_constraint_values(table_name, col_name)
 
             # Determine input type based on column
             if allowed_values:
@@ -198,7 +211,7 @@ def create_record(table_name):
                 if value:
                     form_data[col_name] = value.strftime('%Y-%m-%d')
             elif is_numeric_column(col_type):
-                if 'REAL' in str(col_type).upper() or 'FLOAT' in str(col_type).upper():
+                if 'DECIMAL' in str(col_type).upper() or 'FLOAT' in str(col_type).upper() or 'DOUBLE' in str(col_type).upper():
                     form_data[col_name] = st.number_input(f"{col_name}", value=0.0, step=0.01, key=f"create_{col_name}")
                 else:
                     form_data[col_name] = st.number_input(f"{col_name}", value=0, step=1, key=f"create_{col_name}")
@@ -236,7 +249,7 @@ def read_records(table_name):
     df = fetch_table_data(table_name)
 
     if not df.empty:
-        st.dataframe(df, width='stretch', height=400)
+        st.dataframe(df, use_container_width=True, height=400)
         st.info(f"Total records: {len(df)}")
     else:
         st.warning(f"No records found in {table_name}")
@@ -282,8 +295,7 @@ def update_record(table_name):
                     continue
 
                 # Check for domain constraints
-                col_info = {'table': table_name, 'name': col_name}
-                allowed_values = extract_check_constraint_values(col_info)
+                allowed_values = get_check_constraint_values(table_name, col_name)
 
                 # Create input fields with current values
                 if allowed_values:
@@ -304,7 +316,10 @@ def update_record(table_name):
                 elif is_date_column(col_name):
                     if pd.notna(current_value) and current_value:
                         try:
-                            date_val = datetime.strptime(str(current_value), '%Y-%m-%d').date()
+                            if isinstance(current_value, str):
+                                date_val = datetime.strptime(str(current_value), '%Y-%m-%d').date()
+                            else:
+                                date_val = current_value
                         except:
                             date_val = None
                     else:
@@ -314,7 +329,7 @@ def update_record(table_name):
                     if value:
                         form_data[col_name] = value.strftime('%Y-%m-%d')
                 elif is_numeric_column(col_type):
-                    if 'REAL' in str(col_type).upper() or 'FLOAT' in str(col_type).upper():
+                    if 'DECIMAL' in str(col_type).upper() or 'FLOAT' in str(col_type).upper() or 'DOUBLE' in str(col_type).upper():
                         form_data[col_name] = st.number_input(
                             f"{col_name}",
                             value=float(current_value) if pd.notna(current_value) else 0.0,
@@ -377,7 +392,7 @@ def delete_record(table_name):
 
     # Display all records in a table first
     st.write("### All Records:")
-    st.dataframe(df, width='stretch', height=300)
+    st.dataframe(df, use_container_width=True, height=300)
 
     st.write("---")
 
@@ -455,12 +470,12 @@ def viz_customer_age_distribution():
 
         if not df.empty:
             # Calculate ages
-            df['Age'] = df['DOB'].apply(lambda x: (datetime.now() - datetime.strptime(x, '%Y-%m-%d')).days // 365)
+            df['Age'] = df['DOB'].apply(lambda x: (datetime.now() - pd.to_datetime(x)).days // 365)
 
             fig = px.histogram(df, x='Age', nbins=20, title='Customer Age Distribution',
                              labels={'Age': 'Age (years)', 'count': 'Number of Customers'})
             fig.update_traces(marker_color='lightblue', marker_line_color='darkblue', marker_line_width=1.5)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
             st.metric("Average Age", f"{df['Age'].mean():.1f} years")
         else:
@@ -475,27 +490,27 @@ def viz_customer_growth():
     try:
         engine = get_engine()
         query = text("""
-            SELECT RegistrationDate, COUNT(*) as CustomerCount
+            SELECT DATE(RegistrationDate) as RegDate, COUNT(*) as CustomerCount
             FROM customer
             WHERE RegistrationDate IS NOT NULL
-            GROUP BY RegistrationDate
-            ORDER BY RegistrationDate
+            GROUP BY DATE(RegistrationDate)
+            ORDER BY DATE(RegistrationDate)
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
         if not df.empty:
-            df['RegistrationDate'] = pd.to_datetime(df['RegistrationDate'])
+            df['RegDate'] = pd.to_datetime(df['RegDate'])
             df['CumulativeCustomers'] = df['CustomerCount'].cumsum()
 
-            fig = px.line(df, x='RegistrationDate', y='CumulativeCustomers',
+            fig = px.line(df, x='RegDate', y='CumulativeCustomers',
                          title='Cumulative Customer Growth',
-                         labels={'RegistrationDate': 'Date', 'CumulativeCustomers': 'Total Customers'})
+                         labels={'RegDate': 'Date', 'CumulativeCustomers': 'Total Customers'})
             fig.update_traces(line_color='green', line_width=3)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
-            st.metric("Total Customers", df['CumulativeCustomers'].iloc[-1])
+            st.metric("Total Customers", int(df['CumulativeCustomers'].iloc[-1]))
         else:
             st.info("No customer registration data available")
     except Exception as e:
@@ -508,28 +523,31 @@ def viz_product_sales():
     try:
         engine = get_engine()
         query = text("""
-            SELECT p.ProductName, pa.SalesCount, pa.LastMonthSales, pa.IsBestSeller
+            SELECT p.ProductName,
+                   COALESCE(SUM(op.Quantity), 0) as TotalSold
             FROM product p
-            JOIN productAnalytics pa ON p.ProductID = pa.ProductID
-            ORDER BY pa.SalesCount DESC
+            LEFT JOIN orderProduct op ON p.ProductID = op.ProductID
+            GROUP BY p.ProductID, p.ProductName
+            ORDER BY TotalSold DESC
+            LIMIT 20
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
         if not df.empty:
-            fig = px.bar(df, x='ProductName', y='SalesCount',
-                        title='Product Sales Count',
-                        labels={'ProductName': 'Product', 'SalesCount': 'Total Sales'},
-                        color='IsBestSeller',
-                        color_discrete_map={0: 'lightblue', 1: 'gold'})
-            st.plotly_chart(fig, width='stretch')
+            fig = px.bar(df, x='ProductName', y='TotalSold',
+                        title='Top 20 Products by Sales',
+                        labels={'ProductName': 'Product', 'TotalSold': 'Total Units Sold'},
+                        color='TotalSold',
+                        color_continuous_scale='Blues')
+            st.plotly_chart(fig, use_container_width=True)
 
             col1, col2 = st.columns(2)
-            col1.metric("Total Sales", df['SalesCount'].sum())
-            col2.metric("Best Sellers", len(df[df['IsBestSeller'] == 1]))
+            col1.metric("Total Products", len(df))
+            col2.metric("Total Units Sold", int(df['TotalSold'].sum()))
         else:
-            st.info("No product analytics data available")
+            st.info("No product sales data available")
     except Exception as e:
         st.error(f"Error generating product sales chart: {str(e)}")
 
@@ -554,7 +572,7 @@ def viz_order_distribution():
             fig = px.scatter(df, x='OrderDate', y='TotalAmount',
                            size='ShippingFee', title='Order Amount Over Time',
                            labels={'OrderDate': 'Date', 'TotalAmount': 'Order Amount ($)'})
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
             col1, col2, col3 = st.columns(3)
             col1.metric("Total Orders", len(df))
@@ -584,120 +602,90 @@ def viz_payment_status():
             fig = px.pie(df, values='Count', names='PaymentStatus',
                         title='Payment Status Distribution',
                         color_discrete_sequence=px.colors.sequential.RdBu)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
-            st.dataframe(df, width='stretch')
+            st.dataframe(df, use_container_width=True)
         else:
             st.info("No payment data available")
     except Exception as e:
         st.error(f"Error generating payment status chart: {str(e)}")
 
-def viz_delivery_status():
-    """Delivery Status Breakdown"""
-    st.subheader("🚚 Delivery Status Overview")
+def viz_order_status():
+    """Order Status Overview"""
+    st.subheader("📦 Order Status Overview")
 
     try:
         engine = get_engine()
         query = text("""
-            SELECT DeliveryStatus, COUNT(*) as Count
-            FROM delivery
-            GROUP BY DeliveryStatus
+            SELECT OrderStatus, COUNT(*) as Count
+            FROM orders
+            GROUP BY OrderStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
         if not df.empty:
-            fig = px.bar(df, x='DeliveryStatus', y='Count',
-                        title='Delivery Status Distribution',
-                        labels={'DeliveryStatus': 'Status', 'Count': 'Number of Deliveries'},
+            fig = px.bar(df, x='OrderStatus', y='Count',
+                        title='Order Status Distribution',
+                        labels={'OrderStatus': 'Status', 'Count': 'Number of Orders'},
                         color='Count',
                         color_continuous_scale='Viridis')
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No delivery data available")
+            st.info("No order data available")
     except Exception as e:
-        st.error(f"Error generating delivery status chart: {str(e)}")
+        st.error(f"Error generating order status chart: {str(e)}")
 
-def viz_discount_usage():
-    """Discount Usage Analysis"""
-    st.subheader("🎁 Discount Usage Analysis")
+def viz_stock_status():
+    """Stock Status Overview"""
+    st.subheader("📦 Stock Status Overview")
 
     try:
         engine = get_engine()
         query = text("""
-            SELECT d.DiscountType, d.DiscountValue, COUNT(pd.ProductID) as ProductsWithDiscount
-            FROM discount d
-            LEFT JOIN productDiscount pd ON d.DiscountID = pd.DiscountID
-            GROUP BY d.DiscountID, d.DiscountType, d.DiscountValue
+            SELECT StockStatus, COUNT(*) as Count
+            FROM product
+            GROUP BY StockStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
         if not df.empty:
-            fig = px.bar(df, x='DiscountType', y='ProductsWithDiscount',
-                        title='Products by Discount Type',
-                        labels={'DiscountType': 'Discount Type', 'ProductsWithDiscount': 'Number of Products'},
-                        color='DiscountValue',
-                        color_continuous_scale='Oranges')
-            st.plotly_chart(fig, width='stretch')
+            fig = px.pie(df, values='Count', names='StockStatus',
+                        title='Product Stock Status Distribution')
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No discount data available")
+            st.info("No product stock data available")
     except Exception as e:
-        st.error(f"Error generating discount usage chart: {str(e)}")
+        st.error(f"Error generating stock status chart: {str(e)}")
 
-def viz_geographical_distribution():
-    """Geographical Distribution"""
-    st.subheader("🌍 Geographical Distribution")
+def viz_customer_by_status():
+    """Customer Account Status"""
+    st.subheader("👥 Customer Account Status")
 
     try:
         engine = get_engine()
         query = text("""
-            SELECT
-                a.Street,
-                c.CityName,
-                s.StateName,
-                co.CountryName,
-                a.Latitude,
-                a.Longitude
-            FROM address a
-            LEFT JOIN addressCity ac ON a.AddressID = ac.AddressID
-            LEFT JOIN city c ON ac.CityID = c.CityID
-            LEFT JOIN cityState cs ON c.CityID = cs.CityID
-            LEFT JOIN state s ON cs.StateID = s.StateID
-            LEFT JOIN stateCountry sc ON s.StateID = sc.StateID
-            LEFT JOIN country co ON sc.CountryID = co.CountryID
+            SELECT AccountStatus, COUNT(*) as Count
+            FROM customer
+            GROUP BY AccountStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
         if not df.empty:
-            # Count by country
-            country_counts = df['CountryName'].value_counts().reset_index()
-            country_counts.columns = ['Country', 'Count']
-
-            fig = px.bar(country_counts, x='Country', y='Count',
-                        title='Address Distribution by Country',
-                        labels={'Country': 'Country', 'Count': 'Number of Addresses'},
-                        color='Count',
-                        color_continuous_scale='Blues')
-            st.plotly_chart(fig, width='stretch')
-
-            # Show map if coordinates available
-            map_df = df[df['Latitude'].notna() & df['Longitude'].notna()]
-            if not map_df.empty:
-                fig_map = px.scatter_geo(map_df,
-                                        lat='Latitude',
-                                        lon='Longitude',
-                                        hover_name='CityName',
-                                        title='Address Locations on Map')
-                st.plotly_chart(fig_map, width='stretch')
+            fig = px.bar(df, x='AccountStatus', y='Count',
+                        title='Customer Account Status Distribution',
+                        color='AccountStatus',
+                        color_discrete_sequence=px.colors.qualitative.Set2)
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No geographical data available")
+            st.info("No customer data available")
     except Exception as e:
-        st.error(f"Error generating geographical distribution: {str(e)}")
+        st.error(f"Error generating customer status chart: {str(e)}")
 
 # =====================================================
 # MAIN APPLICATION
@@ -705,25 +693,28 @@ def viz_geographical_distribution():
 
 def main():
     st.set_page_config(
-        page_title="Database Dashboard",
-        page_icon="📊",
+        page_title="E-Commerce Database Dashboard",
+        page_icon="🛒",
         layout="wide",
         initial_sidebar_state="expanded"
     )
 
-    st.title("🗄️ Database Management Dashboard")
+    st.title("🛒 E-Commerce Database Management Dashboard")
     st.markdown("---")
 
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Navigation")
 
+        # Database connection info
+        st.info(f"📊 Connected to: **{MYSQL_CONFIG['database']}**")
+
         # Get all tables
         tables = get_all_tables()
 
         if not tables:
-            st.error("No tables found in database!")
-            return
+            st.error("No tables found in database! Check your connection.")
+            st.stop()
 
         # Mode selection
         mode = st.radio(
@@ -748,12 +739,12 @@ def main():
                 [
                     "Customer Age Distribution",
                     "Customer Growth Over Time",
+                    "Customer Account Status",
                     "Product Sales Analysis",
+                    "Product Stock Status",
                     "Order Amount Distribution",
-                    "Payment Status Breakdown",
-                    "Delivery Status Overview",
-                    "Discount Usage Analysis",
-                    "Geographical Distribution"
+                    "Order Status Overview",
+                    "Payment Status Breakdown"
                 ],
                 key="viz_select"
             )
@@ -776,22 +767,22 @@ def main():
             viz_customer_age_distribution()
         elif viz_option == "Customer Growth Over Time":
             viz_customer_growth()
+        elif viz_option == "Customer Account Status":
+            viz_customer_by_status()
         elif viz_option == "Product Sales Analysis":
             viz_product_sales()
+        elif viz_option == "Product Stock Status":
+            viz_stock_status()
         elif viz_option == "Order Amount Distribution":
             viz_order_distribution()
+        elif viz_option == "Order Status Overview":
+            viz_order_status()
         elif viz_option == "Payment Status Breakdown":
             viz_payment_status()
-        elif viz_option == "Delivery Status Overview":
-            viz_delivery_status()
-        elif viz_option == "Discount Usage Analysis":
-            viz_discount_usage()
-        elif viz_option == "Geographical Distribution":
-            viz_geographical_distribution()
 
     # Footer
     st.markdown("---")
-    st.markdown("*Dashboard built with Streamlit + SQLAlchemy | Secure CRUD with parameterized queries*")
+    st.markdown("*Dashboard built with Streamlit + SQLAlchemy + MySQL | Secure CRUD with parameterized queries*")
 
 if __name__ == "__main__":
     main()
