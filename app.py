@@ -1,6 +1,6 @@
 """
 Streamlit + SQLAlchemy Dashboard for MySQL
-Complete CRUD Operations and Advanced Visualizations
+Complete CRUD Operations and Advanced Visualizations with Role-Based Access Control
 """
 
 import streamlit as st
@@ -12,10 +12,89 @@ from sqlalchemy import create_engine, text, inspect
 import re
 
 # =====================================================
+# ROLE-BASED ACCESS CONTROL CONFIGURATION
+# =====================================================
+
+# Define role permissions - must match MySQL GRANT statements exactly
+ROLE_PERMISSIONS = {
+    'admin_user': {
+        'name': 'Administrator',
+        'tables': 'all',  # Access to all tables
+        'operations': {'all': ['create', 'read', 'update', 'delete']},
+        'visualizations': 'all'
+    },
+    'sales_manager': {
+        'name': 'Sales Manager',
+        'tables': ['customer', 'orders', 'product', 'orderProduct', 'payment', 'ordersummaryview'],
+        'operations': {
+            'customer': ['read'],  # GRANT SELECT
+            'orders': ['read', 'update'],  # GRANT SELECT, UPDATE
+            'product': ['read'],  # GRANT SELECT
+            'orderProduct': ['read'],  # GRANT SELECT
+            'payment': ['read'],  # GRANT SELECT
+            'ordersummaryview': ['read']  # GRANT SELECT
+        },
+        'visualizations': ['customer_age', 'customer_growth', 'product_sales', 'order_amount', 'payment_status', 'order_status']
+    },
+    'customer_service': {
+        'name': 'Customer Service',
+        'tables': ['customer', 'orders', 'product', 'returnTable', 'payment', 'customerserviceview', 'returnmanagementview'],
+        'operations': {
+            'customer': ['read'],  # GRANT SELECT
+            'orders': ['read'],  # GRANT SELECT
+            'product': ['read'],  # GRANT SELECT
+            'returnTable': ['read'],  # GRANT SELECT
+            'payment': ['read'],  # GRANT SELECT
+            'customerserviceview': ['read'],  # GRANT SELECT
+            'returnmanagementview': ['read', 'update']  # GRANT SELECT, UPDATE
+        },
+        'visualizations': ['customer_age', 'customer_account_status', 'order_status']
+    },
+    'warehouse_staff': {
+        'name': 'Warehouse Staff',
+        'tables': ['product', 'supplierProduct', 'supplier', 'productAnalytics'],
+        'operations': {
+            'product': ['read', 'update'],  # GRANT SELECT, UPDATE
+            'supplierProduct': ['read', 'create', 'update'],  # GRANT SELECT, INSERT, UPDATE
+            'supplier': ['read'],  # GRANT SELECT
+            'productAnalytics': ['read']  # GRANT SELECT
+        },
+        'visualizations': ['product_stock', 'product_sales']
+    },
+    'marketing_team': {
+        'name': 'Marketing Team',
+        'tables': ['marketinganalyticsview', 'product', 'productAnalytics', 'customer', 'orders', 'discount'],
+        'operations': {
+            'marketinganalyticsview': ['read'],  # GRANT SELECT
+            'product': ['read'],  # GRANT SELECT
+            'productAnalytics': ['read'],  # GRANT SELECT
+            'customer': ['read'],  # GRANT SELECT
+            'orders': ['read'],  # GRANT SELECT
+            'discount': ['read']  # GRANT SELECT
+        },
+        'visualizations': 'all'  # Full analytics access
+    },
+    'delivery_coordinator': {
+        'name': 'Delivery Coordinator',
+        'tables': ['delivery', 'deliveryPerson', 'orders', 'customer', 'address', 'customerAddress', 'activedeliveryview'],
+        'operations': {
+            'delivery': ['read', 'update'],  # GRANT SELECT, UPDATE
+            'deliveryPerson': ['read'],  # GRANT SELECT
+            'orders': ['read'],  # GRANT SELECT
+            'customer': ['read'],  # GRANT SELECT
+            'address': ['read'],  # GRANT SELECT only - NO UPDATE!
+            'customerAddress': ['read'],  # GRANT SELECT
+            'activedeliveryview': ['read']  # GRANT SELECT
+        },
+        'visualizations': ['order_status']
+    }
+}
+
+# =====================================================
 # DATABASE CONNECTION & HELPER FUNCTIONS
 # =====================================================
 
-# MySQL Configuration
+# MySQL Configuration for admin (used only for login verification)
 MYSQL_CONFIG = {
     'host': 'localhost',
     'port': 3306,
@@ -24,16 +103,116 @@ MYSQL_CONFIG = {
     'database': 'ecommerce_db'
 }
 
-@st.cache_resource
-def get_engine():
-    """Create and cache SQLAlchemy engine for MySQL"""
+def get_engine(username=None, password=None):
+    """Create SQLAlchemy engine - uses role-based credentials if provided"""
     from urllib.parse import quote_plus
-    password = quote_plus(MYSQL_CONFIG['password'])
+
+    if username and password:
+        # Use role-based credentials
+        user = username
+        pwd = quote_plus(password)
+    else:
+        # Use default admin credentials from session or config
+        if 'username' in st.session_state and 'password' in st.session_state:
+            user = st.session_state.username
+            pwd = quote_plus(st.session_state.password)
+        else:
+            user = MYSQL_CONFIG['user']
+            pwd = quote_plus(MYSQL_CONFIG['password'])
+
     connection_string = (
-        f"mysql+pymysql://{MYSQL_CONFIG['user']}:{password}"
+        f"mysql+pymysql://{user}:{pwd}"
         f"@{MYSQL_CONFIG['host']}:{MYSQL_CONFIG['port']}/{MYSQL_CONFIG['database']}"
     )
     return create_engine(connection_string)
+
+# =====================================================
+# AUTHENTICATION & AUTHORIZATION FUNCTIONS
+# =====================================================
+
+def authenticate_user(username, password):
+    """Verify user credentials by attempting to connect to MySQL"""
+    try:
+        engine = get_engine(username, password)
+        with engine.connect() as conn:
+            # Test connection
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+def get_user_role(username):
+    """Get role name from username"""
+    if username in ROLE_PERMISSIONS:
+        return username
+    return None
+
+def get_role_name(role):
+    """Get display name for role"""
+    if role in ROLE_PERMISSIONS:
+        return ROLE_PERMISSIONS[role]['name']
+    return "Unknown"
+
+def can_access_table(role, table_name):
+    """Check if role has access to a specific table"""
+    if role not in ROLE_PERMISSIONS:
+        return False
+
+    allowed_tables = ROLE_PERMISSIONS[role]['tables']
+    if allowed_tables == 'all':
+        return True
+    return table_name in allowed_tables
+
+def can_perform_operation(role, operation, table_name=None):
+    """Check if role can perform specific operation on a table (create/read/update/delete)"""
+    if role not in ROLE_PERMISSIONS:
+        return False
+
+    allowed_operations = ROLE_PERMISSIONS[role]['operations']
+
+    # Admin has all operations on all tables
+    if allowed_operations == {'all': ['create', 'read', 'update', 'delete']}:
+        return True
+
+    # If operations is a dict (table-specific permissions)
+    if isinstance(allowed_operations, dict):
+        if table_name and table_name in allowed_operations:
+            return operation in allowed_operations[table_name]
+        # Default: no permission if table not specified or not in dict
+        return False
+
+    # Legacy: if operations is a list (global permissions for all accessible tables)
+    return operation in allowed_operations
+
+def can_view_visualization(role, viz_key):
+    """Check if role can view specific visualization"""
+    if role not in ROLE_PERMISSIONS:
+        return False
+
+    allowed_viz = ROLE_PERMISSIONS[role]['visualizations']
+    if allowed_viz == 'all':
+        return True
+    return viz_key in allowed_viz
+
+def get_accessible_tables(role):
+    """Get list of tables accessible to role"""
+    if role not in ROLE_PERMISSIONS:
+        return []
+
+    allowed_tables = ROLE_PERMISSIONS[role]['tables']
+    if allowed_tables == 'all':
+        # Admin gets access to all tables including audit and security logs
+        return get_all_tables(include_audit=True)
+
+    # Get all tables and filter by permissions
+    all_tables = get_all_tables(include_audit=False)
+    return [t for t in all_tables if t in allowed_tables]
+
+def logout():
+    """Clear session and logout user"""
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
 
 def fetch_table_data(table_name):
     """Fetch all data from a specific table"""
@@ -88,17 +267,29 @@ def get_primary_key(table_name):
         st.error(f"Error getting primary key for {table_name}: {str(e)}")
         return []
 
-def get_all_tables():
-    """Get list of all tables in the database"""
+def get_all_tables(include_audit=False):
+    """Get list of all tables and views in the database
+
+    Args:
+        include_audit: If True, includes audit tables and security logs (for admin only)
+    """
     try:
         engine = get_engine()
         inspector = inspect(engine)
-        # Filter out audit tables and views
+        # Get both tables and views
         all_tables = inspector.get_table_names()
-        # Exclude audit tables and system tables
-        excluded = ['customer_audit', 'card_audit', 'product_audit', 'orders_audit', 'payment_audit', 'security_log']
-        tables = [t for t in all_tables if t not in excluded and not t.endswith('_audit')]
-        return sorted(tables)
+        all_views = inspector.get_view_names()
+        # Combine tables and views
+        all_objects = all_tables + all_views
+
+        if include_audit:
+            # Admin: Include everything
+            return sorted(all_objects)
+        else:
+            # Other roles: Exclude audit tables and security logs
+            excluded = ['customer_audit', 'card_audit', 'product_audit', 'orders_audit', 'payment_audit', 'security_log']
+            tables = [t for t in all_objects if t not in excluded and not t.endswith('_audit')]
+            return sorted(tables)
     except Exception as e:
         st.error(f"Error getting table names: {str(e)}")
         return []
@@ -688,10 +879,92 @@ def viz_customer_by_status():
         st.error(f"Error generating customer status chart: {str(e)}")
 
 # =====================================================
+# LOGIN PAGE
+# =====================================================
+
+def show_login_page():
+    """Display login page"""
+    st.set_page_config(
+        page_title="Login - E-Commerce Dashboard",
+        page_icon="🔐",
+        layout="centered"
+    )
+
+    # Center the login form
+    _, col2, _ = st.columns([1, 2, 1])
+
+    with col2:
+        st.title("🔐 E-Commerce Dashboard Login")
+        st.markdown("---")
+
+        # Login form
+        with st.form("login_form"):
+            st.subheader("Please enter your credentials")
+
+            username = st.text_input("Username", placeholder="e.g., admin_user, sales_manager")
+            password = st.text_input("Password", type="password")
+
+            submitted = st.form_submit_button("🔓 Login", use_container_width=True)
+
+            if submitted:
+                if not username or not password:
+                    st.error("⚠️ Please enter both username and password")
+                elif authenticate_user(username, password):
+                    role = get_user_role(username)
+                    if role:
+                        # Store credentials in session
+                        st.session_state.logged_in = True
+                        st.session_state.username = username
+                        st.session_state.password = password
+                        st.session_state.role = role
+                        st.success(f"✅ Welcome, {get_role_name(role)}!")
+                        st.rerun()
+                    else:
+                        st.error("❌ User role not recognized")
+                else:
+                    st.error("❌ Invalid username or password")
+
+        st.markdown("---")
+
+        # Display available roles (for demo purposes)
+        with st.expander("ℹ️ Available User Roles"):
+            st.markdown("""
+            **Administrator:**
+            - Username: `admin_user`
+            - Password: `SecurePass123!`
+
+            **Sales Manager:**
+            - Username: `sales_manager`
+            - Password: `SalesPass456!`
+
+            **Customer Service:**
+            - Username: `customer_service`
+            - Password: `CSPass789!`
+
+            **Warehouse Staff:**
+            - Username: `warehouse_staff`
+            - Password: `WarehousePass012!`
+
+            **Marketing Team:**
+            - Username: `marketing_team`
+            - Password: `MarketPass345!`
+
+            **Delivery Coordinator:**
+            - Username: `delivery_coordinator`
+            - Password: `DeliveryPass678!`
+            """)
+
+# =====================================================
 # MAIN APPLICATION
 # =====================================================
 
 def main():
+    # Check if user is logged in
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        show_login_page()
+        return
+
+    # User is logged in - show dashboard
     st.set_page_config(
         page_title="E-Commerce Database Dashboard",
         page_icon="🛒",
@@ -699,70 +972,214 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    st.title("🛒 E-Commerce Database Management Dashboard")
+    role = st.session_state.role
+    role_name = get_role_name(role)
+
+    st.title(f"🛒 E-Commerce Database Management Dashboard")
+    st.caption(f"👤 Logged in as: **{role_name}** ({st.session_state.username})")
     st.markdown("---")
 
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Navigation")
 
-        # Database connection info
-        st.info(f"📊 Connected to: **{MYSQL_CONFIG['database']}**")
+        # User info and logout
+        st.info(f"👤 **{role_name}**\n\n📊 Database: **{MYSQL_CONFIG['database']}**")
 
-        # Get all tables
-        tables = get_all_tables()
+        if st.button("🚪 Logout", use_container_width=True):
+            logout()
+
+        st.markdown("---")
+
+        # Get accessible tables for this role
+        tables = get_accessible_tables(role)
 
         if not tables:
-            st.error("No tables found in database! Check your connection.")
+            st.error("No tables accessible with your permissions.")
             st.stop()
 
         # Mode selection
         mode = st.radio(
             "Select Mode",
-            ["CRUD Operations", "Visualizations"],
+            ["CRUD Operations", "View Data", "Visualizations"],
             key="mode_select"
         )
 
         if mode == "CRUD Operations":
             st.markdown("### 📋 CRUD Operations")
-            selected_table = st.selectbox("Select Table", tables, key="crud_table")
 
-            crud_operation = st.radio(
-                "Select Operation",
-                ["Create", "Read", "Update", "Delete"],
-                key="crud_op"
-            )
+            # For admin, provide quick access to audit and security tables
+            if role == 'admin_user':
+                audit_tables = ['customer_audit', 'card_audit', 'product_audit', 'orders_audit', 'payment_audit', 'security_log']
+                available_audit = [t for t in audit_tables if t in tables]
+
+                if available_audit:
+                    with st.expander("🔒 Quick Access: Audit & Security Tables", expanded=True):
+                        st.markdown("**Audit Trail Tables:**")
+                        audit_cols = st.columns(3)
+                        for idx, audit_table in enumerate(available_audit):
+                            if audit_table != 'security_log':
+                                if audit_cols[idx % 3].button(f"📋 {audit_table}", key=f"quick_{audit_table}"):
+                                    st.session_state.selected_audit_table = audit_table
+                                    st.rerun()
+
+                        if 'security_log' in available_audit:
+                            st.markdown("**Security Log:**")
+                            if st.button("🔐 security_log", key="quick_security_log", use_container_width=True):
+                                st.session_state.selected_audit_table = 'security_log'
+                                st.rerun()
+
+            # Table selection
+            default_table = st.session_state.get('selected_audit_table', None)
+            if default_table and default_table in tables:
+                default_index = tables.index(default_table)
+                # Clear after using so it doesn't persist
+                if 'selected_audit_table' in st.session_state:
+                    del st.session_state.selected_audit_table
+            else:
+                default_index = 0
+
+            selected_table = st.selectbox("Select Table", tables, index=default_index, key="crud_table")
+
+            # Filter operations based on role permissions FOR THIS SPECIFIC TABLE
+            available_operations = []
+            if can_perform_operation(role, 'create', selected_table):
+                available_operations.append("Create")
+            if can_perform_operation(role, 'read', selected_table):
+                available_operations.append("Read")
+            if can_perform_operation(role, 'update', selected_table):
+                available_operations.append("Update")
+            if can_perform_operation(role, 'delete', selected_table):
+                available_operations.append("Delete")
+
+            if not available_operations:
+                st.warning(f"⚠️ No operations available for table '{selected_table}' with your role")
+                crud_operation = None
+            else:
+                crud_operation = st.radio(
+                    "Select Operation",
+                    available_operations,
+                    key="crud_op"
+                )
+        elif mode == "View Data":
+            st.markdown("### 👁️ Database Views")
+
+            # Filter only views (tables ending with 'View' or starting with 'vw_')
+            view_tables = [t for t in tables if 'View' in t or t.startswith('vw_')]
+
+            if not view_tables:
+                st.warning("No views available for your role")
+                selected_view = None
+            else:
+                selected_view = st.selectbox("Select View", view_tables, key="view_select")
         else:
             st.markdown("### 📊 Visualizations")
-            viz_option = st.selectbox(
-                "Select Visualization",
-                [
-                    "Customer Age Distribution",
-                    "Customer Growth Over Time",
-                    "Customer Account Status",
-                    "Product Sales Analysis",
-                    "Product Stock Status",
-                    "Order Amount Distribution",
-                    "Order Status Overview",
-                    "Payment Status Breakdown"
-                ],
-                key="viz_select"
-            )
+
+            # Filter visualizations based on role permissions
+            all_viz = {
+                "Customer Age Distribution": "customer_age",
+                "Customer Growth Over Time": "customer_growth",
+                "Customer Account Status": "customer_account_status",
+                "Product Sales Analysis": "product_sales",
+                "Product Stock Status": "product_stock",
+                "Order Amount Distribution": "order_amount",
+                "Order Status Overview": "order_status",
+                "Payment Status Breakdown": "payment_status"
+            }
+
+            available_viz = {k: v for k, v in all_viz.items() if can_view_visualization(role, v)}
+
+            if not available_viz:
+                st.warning("No visualizations available for your role")
+                viz_option = None
+            else:
+                viz_option = st.selectbox(
+                    "Select Visualization",
+                    list(available_viz.keys()),
+                    key="viz_select"
+                )
 
     # Main content area
-    if mode == "CRUD Operations":
-        st.header(f"📋 {crud_operation} Operations - {selected_table}")
+    if mode == "View Data" and selected_view:
+        st.header(f"👁️ Database View: {selected_view}")
 
-        if crud_operation == "Create":
-            create_record(selected_table)
-        elif crud_operation == "Read":
-            read_records(selected_table)
-        elif crud_operation == "Update":
-            update_record(selected_table)
-        elif crud_operation == "Delete":
-            delete_record(selected_table)
+        # Add description for each view (only granted views)
+        view_descriptions = {
+            'ordersummaryview': 'Summary of all orders with customer and payment information',
+            'customerserviceview': 'Customer service overview with order and return data',
+            'returnmanagementview': 'Return management data for customer service',
+            'marketinganalyticsview': 'Marketing analytics and customer insights',
+            'activedeliveryview': 'Currently active deliveries and their status'
+        }
 
-    else:  # Visualizations
+        if selected_view in view_descriptions:
+            st.info(f"📝 **Description:** {view_descriptions[selected_view]}")
+
+        # Fetch and display view data
+        try:
+            df = fetch_table_data(selected_view)
+
+            if not df.empty:
+                # Add search functionality
+                st.subheader("🔍 Search and Filter")
+                search_col = st.selectbox("Search by column", ["All"] + list(df.columns))
+                search_term = st.text_input("Search term", "")
+
+                # Filter data based on search
+                if search_term:
+                    if search_col == "All":
+                        # Search across all columns
+                        mask = df.astype(str).apply(lambda x: x.str.contains(search_term, case=False, na=False)).any(axis=1)
+                        filtered_df = df[mask]
+                    else:
+                        # Search in specific column
+                        mask = df[search_col].astype(str).str.contains(search_term, case=False, na=False)
+                        filtered_df = df[mask]
+
+                    st.dataframe(filtered_df, use_container_width=True, height=500)
+                    st.info(f"Showing {len(filtered_df)} of {len(df)} records")
+                else:
+                    st.dataframe(df, use_container_width=True, height=500)
+                    st.info(f"Total records: {len(df)}")
+
+                # Add export option
+                st.download_button(
+                    label="📥 Download as CSV",
+                    data=df.to_csv(index=False).encode('utf-8'),
+                    file_name=f"{selected_view}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+
+                # Show column statistics for numeric columns
+                numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+                if len(numeric_cols) > 0:
+                    st.subheader("📊 Numeric Column Statistics")
+                    st.dataframe(df[numeric_cols].describe(), use_container_width=True)
+            else:
+                st.warning(f"No data found in view: {selected_view}")
+
+        except Exception as e:
+            st.error(f"Error fetching view data: {str(e)}")
+
+    elif mode == "CRUD Operations" and crud_operation:
+        # Check if user has access to selected table
+        if not can_access_table(role, selected_table):
+            st.error(f"❌ Access denied: You don't have permission to access the '{selected_table}' table.")
+            st.info(f"Your role ({role_name}) can only access: {', '.join(get_accessible_tables(role))}")
+        else:
+            st.header(f"📋 {crud_operation} Operations - {selected_table}")
+
+            if crud_operation == "Create":
+                create_record(selected_table)
+            elif crud_operation == "Read":
+                read_records(selected_table)
+            elif crud_operation == "Update":
+                update_record(selected_table)
+            elif crud_operation == "Delete":
+                delete_record(selected_table)
+
+    elif mode == "Visualizations" and viz_option:
+        # All visualization permissions already checked when building the menu
         if viz_option == "Customer Age Distribution":
             viz_customer_age_distribution()
         elif viz_option == "Customer Growth Over Time":
@@ -782,7 +1199,7 @@ def main():
 
     # Footer
     st.markdown("---")
-    st.markdown("*Dashboard built with Streamlit + SQLAlchemy + MySQL | Secure CRUD with parameterized queries*")
+    st.markdown(f"*Dashboard with Role-Based Access Control | Logged in as: {role_name}*")
 
 if __name__ == "__main__":
     main()

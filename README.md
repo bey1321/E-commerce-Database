@@ -1,358 +1,191 @@
 # 🛒 E-Commerce Database Management Dashboard
 
-> A modern, interactive web dashboard for managing MySQL e-commerce databases with complete CRUD operations and real-time analytics.
+> Modern web dashboard for MySQL e-commerce databases with Role-Based Access Control, CRUD operations, database views, and real-time analytics.
 
 ![Built with](https://img.shields.io/badge/Built%20with-Streamlit-red) ![Database](https://img.shields.io/badge/Database-MySQL-blue) ![Python](https://img.shields.io/badge/Python-3.8%2B-green)
 
 ---
 
-## 📖 Table of Contents
-
-- [Overview](#-overview)
-- [Features](#-features)
-- [Screenshots](#-screenshots)
-- [Quick Start](#-quick-start)
-- [Setup Guide](#-setup-guide)
-- [Usage](#-usage)
-- [Troubleshooting](#-troubleshooting)
-- [Project Structure](#-project-structure)
-- [Security Features](#-security-features)
-- [Contributing](#-contributing)
-
----
-
 ## 🌟 Overview
 
-This dashboard provides a complete web-based interface for managing your MySQL e-commerce database. Built with **Streamlit** and **SQLAlchemy**, it offers:
+Complete web-based interface for managing MySQL e-commerce databases with enterprise-grade security and intuitive operations.
 
-- **Full CRUD Operations** - Create, Read, Update, and Delete records from any table
-- **Interactive Visualizations** - Real-time charts and analytics powered by Plotly
-- **Smart Forms** - Automatically generated forms with input validation
-- **Security** - Role-based access control, audit trails, and SQL injection prevention
-- **Zero Configuration** - Auto-detects your database schema and adapts
+**Key Features:**
+- **Role-Based Access Control** - 6 user roles with specific permissions
+- **CRUD Operations** - Create, Read, Update, Delete with smart forms
+- **Database Views** - Access role-specific views with search and export
+- **Audit Trails** - Track all changes with who, what, when
+- **Interactive Visualizations** - Real-time charts powered by Plotly
+- **Security** - SQL injection prevention, data masking, security logs
 
-**Perfect for:** Database administrators, developers, business analysts, and students learning database management.
-
----
-
-## ✨ Features
-
-### 🔧 CRUD Operations
-
-| Operation | Description |
-|-----------|-------------|
-| **Create** | Auto-generated forms with smart input types (date pickers, number inputs, dropdowns) |
-| **Read** | Interactive data tables with sorting and filtering |
-| **Update** | Pre-filled forms with validation and primary key protection |
-| **Delete** | Safe deletion with confirmation dialogs |
-
-### 📊 Advanced Visualizations
-
-1. 📈 **Customer Age Distribution** - Demographic analysis with histogram
-2. 📅 **Customer Growth Over Time** - Track user acquisition trends
-3. 👥 **Customer Account Status** - Active/Inactive/Suspended breakdown
-4. 🛒 **Product Sales Analysis** - Top 20 best-selling products
-5. 📦 **Product Stock Status** - Real-time inventory monitoring
-6. 💰 **Order Amount Distribution** - Revenue analysis over time
-7. 🚚 **Order Status Overview** - Track order pipeline
-8. 💳 **Payment Status Breakdown** - Payment completion rates
-
-### 🔒 Security Features
-
-- ✅ **SQL Injection Prevention** - All queries use parameterized statements
-- ✅ **Password URL Encoding** - Special characters in passwords are properly handled
-- ✅ **Role-Based Access Control** - 6 different user roles with specific permissions
-- ✅ **Audit Trails** - Automatic logging of all data modifications
-- ✅ **Data Masking** - Sensitive information protected in views
-- ✅ **Input Validation** - Date formats and CHECK constraints enforced
-
----
-
-## 🖼️ Screenshots
-
-### Dashboard Interface
-```
-┌─────────────────────────────────────────────────────────┐
-│  🛒 E-Commerce Database Management Dashboard            │
-├─────────────────────────────────────────────────────────┤
-│  Navigation                │  Main Content Area         │
-│  ─────────────            │  ─────────────────         │
-│  📊 Connected to:         │  📋 CRUD Operations         │
-│      ecommerce_db         │                            │
-│                           │  Select Table: [customer ▾]│
-│  ⚙️ Select Mode:          │                            │
-│   ○ CRUD Operations       │  Operation: [Create ▾]     │
-│   ○ Visualizations        │                            │
-│                           │  [Interactive Forms Here]   │
-│  Select Table:            │                            │
-│   [Dropdown ▾]            │                            │
-│                           │                            │
-│  Operation:               │  [Data/Charts Display]     │
-│   ○ Create                │                            │
-│   ○ Read                  │                            │
-│   ○ Update                │                            │
-│   ○ Delete                │                            │
-└───────────────────────────┴────────────────────────────┘
-```
+**Perfect for:** Database administrators, developers, business analysts, and students.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+- Python 3.8+
+- MySQL Server 8.0+
 
-Before you begin, ensure you have:
-
-- ✅ **Python 3.8 or higher** installed ([Download Python](https://www.python.org/downloads/))
-- ✅ **MySQL Server 8.0+** installed and running ([Download MySQL](https://dev.mysql.com/downloads/))
-- ✅ **Git** (optional, for cloning the repository)
-
-### Installation in 3 Steps
-
-#### Step 1: Clone or Download
+### Installation
 
 ```bash
+# 1. Clone/Download the project
 git clone <repository-url>
 cd new_database_project
-```
 
-Or download and extract the ZIP file.
-
-#### Step 2: Configure Database Connection
-
-Open `app.py` and update your MySQL credentials (lines 19-25):
-
-```python
+# 2. Configure database connection in app.py (lines 98-103)
 MYSQL_CONFIG = {
     'host': 'localhost',
     'port': 3306,
-    'user': 'root',              # ← Your MySQL username
-    'password': 'your_password',  # ← Your MySQL password
-    'database': 'ecommerce_db'    # ← Your database name
+    'user': 'root',
+    'password': 'MySQL@2025',
+    'database': 'ecommerce_db'
 }
-```
 
-**Important:** If your password contains special characters like `@`, `#`, `!`, etc., don't worry - they are automatically URL-encoded.
-
-#### Step 3: Install and Run
-
-**Option A: Automatic (Windows)**
-```bash
-# Double-click this file:
-run_dashboard.bat
-```
-
-**Option B: Manual**
-```bash
-# Install dependencies
+# 3. Install and run
 pip install -r requirements.txt
-
-# Run the dashboard
-python -m streamlit run app.py
+streamlit run app.py
 ```
 
-The dashboard will automatically open in your browser at `http://localhost:8501` 🎉
+**Windows users:** Double-click `run_dashboard.bat`
+
+Dashboard opens at: `http://localhost:8501` 🎉
+
+---
+
+## ✨ Main Features
+
+### 1. 🔐 Role-Based Access Control
+
+Login with different roles to access role-specific features:
+
+| Role | Username | Access |
+|------|----------|--------|
+| **Administrator** | `admin_user` | Full access + audit trails + security logs |
+| **Sales Manager** | `sales_manager` | Customers, orders, sales view |
+| **Customer Service** | `customer_service` | Customer data, returns, service view |
+| **Warehouse Staff** | `warehouse_staff` | Products, inventory, suppliers |
+| **Marketing Team** | `marketing_team` | Analytics view, customer insights |
+| **Delivery Coordinator** | `delivery_coordinator` | Deliveries, active delivery view |
+
+### 2. 📋 CRUD Operations
+
+**Features:**
+- Auto-generated smart forms (date pickers, dropdowns, number inputs)
+- Primary key protection (auto-increment, read-only)
+- CHECK constraint validation
+- Foreign key awareness
+- Confirmation dialogs for deletions
+
+### 3. 👁️ View Data Mode *(NEW)*
+
+**Access role-specific database views:**
+- Browse pre-filtered, pre-joined data
+- Search and filter by any column
+- View numeric statistics
+- Export to CSV with timestamps
+- Views include: `OrderSummaryView`, `CustomerServiceView`, `ReturnManagementView`, `MarketingAnalyticsView`, `ActiveDeliveryView`
+
+### 4. 🔒 Audit Trails & Security Logs *(Admin Only)*
+
+**Quick Access Panel for:**
+- `customer_audit` - Track customer changes
+- `card_audit` - Monitor payment card updates
+- `product_audit` - Product modifications
+- `orders_audit` - Order changes
+- `payment_audit` - Payment modifications
+- `security_log` - Security events and access attempts
+
+**Each log captures:** User, action, old/new values, timestamp
+
+### 5. 📊 Visualizations
+
+**8 Interactive Charts:**
+- Customer Age Distribution
+- Customer Growth Over Time
+- Customer Account Status
+- Product Sales Analysis
+- Product Stock Status
+- Order Amount Distribution
+- Order Status Overview
+- Payment Status Breakdown
+
+**Features:** Hover details, zoom, pan, download
 
 ---
 
 ## 📚 Setup Guide
 
-### Creating the Database
-
-If you haven't created the database yet:
+### 1. Create Database
 
 ```bash
-# 1. Connect to MySQL
 mysql -u root -p
-
-# 2. Create database
 CREATE DATABASE ecommerce_db;
-
-# 3. Exit MySQL
 exit
 
-# 4. Import schema
+# Import schema
 mysql -u root -p ecommerce_db < normal_Schema_MySQL.sql
 
-# 5. Import sample data (optional)
+# Insert sample data (optional)
 mysql -u root -p ecommerce_db < normal_insert.sql
 ```
 
-### Implementing Security Features
-
-To enable role-based access control and audit trails:
+### 2. Enable Security Features
 
 ```bash
-# 1. Create user accounts
+# Create user accounts
 mysql -u root -p ecommerce_db < security/userAccountCreation.sql
 
-# 2. Grant privileges
+# Grant privileges
 mysql -u root -p ecommerce_db < security/GrantPrivilages.sql
 
-# 3. Create audit tables
+# Create audit tables
 mysql -u root -p ecommerce_db < security/AuditTrailTables.sql
 
-# 4. Create triggers
+# Enable triggers
 mysql -u root -p ecommerce_db < security/Trigers.sql
 
-# 5. Create security views
+# Create views
 mysql -u root -p ecommerce_db < security/ViewAccessControl.sql
 mysql -u root -p ecommerce_db < security/DataMaskingView.sql
 mysql -u root -p ecommerce_db < security/SecurityLog.sql
+```
+
+### 3. Login
+
+Use these credentials (set in `security/userAccountCreation.sql`):
+
+```
+Admin: admin_user / SecurePass123!
+Sales: sales_manager / SalesPass456!
+CS: customer_service / CSPass789!
+Warehouse: warehouse_staff / WarehousePass012!
+Marketing: marketing_team / MarketPass345!
+Delivery: delivery_coordinator / DeliveryPass678!
 ```
 
 ---
 
 ## 🎯 Usage
 
-### CRUD Operations Guide
+### CRUD Operations
+1. Select **CRUD Operations** mode
+2. Choose table from dropdown (or use Quick Access for audit tables)
+3. Select operation: Create, Read, Update, or Delete
+4. Complete the form/action
 
-#### 1️⃣ Creating Records
+### View Data *(NEW)*
+1. Select **View Data** mode
+2. Choose a view from dropdown (only shows views you can access)
+3. Search/filter data
+4. Export to CSV if needed
 
-1. Select **"CRUD Operations"** from the sidebar
-2. Choose a table (e.g., `customer`)
-3. Select **"Create"** operation
-4. Fill in the form:
-   - 📅 **Date fields**: Use the date picker
-   - 🔢 **Numeric fields**: Use number spinners
-   - 📝 **Text fields**: Type directly
-   - 🎯 **Constrained fields**: Select from dropdown (e.g., Gender: Male/Female)
-5. Click **"Create Record"**
-
-**Note:** Auto-increment IDs are displayed but not editable - they're generated automatically!
-
-#### 2️⃣ Reading Records
-
-1. Select table and **"Read"** operation
-2. View all records in an interactive table
-3. Scroll horizontally/vertically to explore data
-4. See total record count at the bottom
-
-#### 3️⃣ Updating Records
-
-1. Select table and **"Update"** operation
-2. Choose a record from the dropdown
-3. Modify the pre-filled form (primary keys cannot be changed)
-4. Click **"Update Record"**
-
-#### 4️⃣ Deleting Records
-
-1. Select table and **"Delete"** operation
-2. View all records first
-3. Select the record to delete
-4. Review details carefully
-5. Click **"Confirm Delete"**
-
-⚠️ **Warning:** Deletion is permanent! Ensure you have backups.
-
-### Visualizations Guide
-
-1. Select **"Visualizations"** from the sidebar
-2. Choose a visualization from the dropdown
-3. Interact with charts:
-   - **Hover** to see detailed values
-   - **Zoom** by dragging
-   - **Pan** by holding shift and dragging
-   - **Download** using the camera icon
-
-All visualizations update in real-time based on your actual database data!
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues and Solutions
-
-<details>
-<summary><b>❌ "Can't connect to MySQL server"</b></summary>
-
-**Causes:**
-- MySQL server is not running
-- Incorrect host or port
-- Firewall blocking connection
-
-**Solutions:**
-1. **Check if MySQL is running:**
-   - Windows: Open Services (`Win + R` → `services.msc`), find MySQL service, ensure it's "Running"
-   - Mac: `brew services list`
-   - Linux: `sudo systemctl status mysql`
-
-2. **Start MySQL if stopped:**
-   - Windows: Right-click MySQL service → Start
-   - Mac: `brew services start mysql`
-   - Linux: `sudo systemctl start mysql`
-
-3. **Verify connection manually:**
-   ```bash
-   mysql -u root -p
-   # If this fails, MySQL is not running or credentials are wrong
-   ```
-</details>
-
-<details>
-<summary><b>❌ "Access denied for user 'root'@'localhost'"</b></summary>
-
-**Solution:**
-1. Check your password in `app.py` line 23
-2. Ensure special characters are included exactly as they are
-3. Try resetting MySQL root password:
-   ```bash
-   ALTER USER 'root'@'localhost' IDENTIFIED BY 'new_password';
-   FLUSH PRIVILEGES;
-   ```
-</details>
-
-<details>
-<summary><b>❌ "Unknown database 'ecommerce_db'"</b></summary>
-
-**Solution:**
-The database doesn't exist. Create it:
-```bash
-mysql -u root -p
-CREATE DATABASE ecommerce_db;
-exit
-```
-</details>
-
-<details>
-<summary><b>❌ "No tables found in database"</b></summary>
-
-**Solution:**
-The database is empty. Import the schema:
-```bash
-mysql -u root -p ecommerce_db < normal_Schema_MySQL.sql
-```
-</details>
-
-<details>
-<summary><b>❌ Dashboard shows old error after fixing connection</b></summary>
-
-**Solution:**
-Streamlit caches the database connection. Clear it:
-1. In your browser, press **`C`** while on the dashboard
-2. Or click the menu (☰) → "Clear cache"
-3. Or restart the dashboard
-</details>
-
-<details>
-<summary><b>❌ "Foreign key constraint fails" when creating records</b></summary>
-
-**Solution:**
-You're trying to create a child record without a parent. For example:
-- Creating an order without a customer
-- Creating an order product without a product
-
-**Fix:** Create the parent record first (e.g., customer, product) then create the child record.
-</details>
-
-<details>
-<summary><b>❌ Date validation errors</b></summary>
-
-**Solution:**
-- Always use the date picker instead of typing
-- If typing, use format: `YYYY-MM-DD` (e.g., `2024-03-15`)
-- Ensure dates are valid (e.g., not `2024-02-30`)
-</details>
+### Visualizations
+1. Select **Visualizations** mode
+2. Choose chart from dropdown (based on role permissions)
+3. Interact with charts (hover, zoom, download)
 
 ---
 
@@ -360,273 +193,166 @@ You're trying to create a child record without a parent. For example:
 
 ```
 new_database_project/
+├── app.py                          # Main dashboard (1088 lines)
+├── requirements.txt                # Dependencies
+├── run_dashboard.bat              # Windows launcher
 │
-├── 📄 app.py                              # Main dashboard application
-├── 📄 requirements.txt                    # Python dependencies
-├── 📄 run_dashboard.bat                   # Windows quick launcher
+├── 📖 Documentation
+│   ├── README.md                  # This file
+│   ├── README_DASHBOARD.md        # Dashboard-specific docs
+│   ├── VIEW_ACCESS_GUIDE.md       # View data mode guide
+│   ├── AUDIT_TRAIL_GUIDE.md       # Audit trails guide
+│   └── Database_Security_Implementation_Report.md
 │
-├── 📖 README.md                           # This file
-├── 📖 SETUP_INSTRUCTIONS.md              # Detailed setup guide
-├── 📖 README_DASHBOARD.md                # Dashboard-specific documentation
-├── 📖 Database_Security_Implementation_Report.md  # Security documentation
+├── security/                      # Security implementation
+│   ├── userAccountCreation.sql    # User roles
+│   ├── GrantPrivilages.sql        # Permissions
+│   ├── ViewAccessControl.sql      # Role-specific views
+│   ├── AuditTrailTables.sql       # Audit tables
+│   ├── Trigers.sql                # Auto-audit triggers
+│   ├── DataMaskingView.sql        # Sensitive data masking
+│   └── SecurityLog.sql            # Security event log
 │
-├── 📁 security/                          # Security implementation scripts
-│   ├── userAccountCreation.sql           # Create role-based user accounts
-│   ├── GrantPrivilages.sql               # Assign role permissions
-│   ├── ViewAccessControl.sql             # Role-specific views
-│   ├── AuditTrailTables.sql              # Audit logging tables
-│   ├── Trigers.sql                       # Auto-audit triggers
-│   ├── DataMaskingView.sql               # Sensitive data masking
-│   └── SecurityLog.sql                   # Security event logging
+├── UserRoleTests/                 # Test scripts
+│   └── *RoleTest.sql              # SQL tests for each role
 │
-├── 📁 UserRoleTests/                     # Test scripts for each role
-│   ├── adminRoleTest.sql                 # Admin privileges test
-│   ├── salesManagerRoleTest.sql          # Sales manager test
-│   ├── customerServiceRoleTest.sql       # Customer service test
-│   ├── warehouseStaffRoleTest.sql        # Warehouse staff test
-│   ├── marketingTeamRoleTest.sql         # Marketing team test
-│   └── deliveryCoordinatorRoleTest.sql   # Delivery coordinator test
-│
-├── 📄 normal_Schema_MySQL.sql            # Complete database schema
-└── 📄 normal_insert.sql                  # Sample data for testing
+├── normal_Schema_MySQL.sql        # Database schema
+└── normal_insert.sql              # Sample data
 ```
 
 ---
 
 ## 🛡️ Security Features
 
-This project implements comprehensive database security following industry best practices:
+### SQL Injection Prevention
+- All queries use parameterized statements (`:placeholder` format)
+- Password URL encoding for special characters
+- Input validation on all forms
 
 ### Role-Based Access Control (RBAC)
-
-6 distinct user roles with specific permissions:
-
-| Role | Permissions | Use Case |
-|------|-------------|----------|
-| **Admin** | Full access to all tables and operations | System administration |
-| **Sales Manager** | Customer, orders, products, discounts | Sales operations |
-| **Customer Service** | Customer info, orders, returns | Customer support |
-| **Warehouse Staff** | Products, inventory, suppliers | Inventory management |
-| **Marketing Team** | Customer data (read-only), campaigns | Marketing analytics |
-| **Delivery Coordinator** | Orders, delivery, addresses | Logistics |
+- 6 user roles with specific table/view permissions
+- Operations restricted by role (create/read/update/delete)
+- Visualizations filtered by role
 
 ### Audit Trail System
-
-All data modifications are automatically logged:
-- **Who** made the change (user)
-- **What** was changed (old and new values)
-- **When** it was changed (timestamp)
-- **Which** record was affected
+- Automatic logging of all data modifications
+- Captures: User, action (INSERT/UPDATE/DELETE), old/new values, timestamp
+- Triggered automatically via MySQL triggers
 
 ### Data Masking
-
-Sensitive information is masked in certain views:
-- Credit card numbers: `****-****-****-1234`
-- Email addresses: `j***@example.com`
-- Phone numbers: `***-***-5678`
+- Credit cards: `****-****-****-1234`
+- Emails: `j***@example.com`
+- Phone: `***-***-5678`
 
 ### Security Event Logging
-
-All security-related events are logged:
 - Failed login attempts
 - Permission denials
-- Suspicious activity patterns
-
-**📖 For detailed security documentation, see:** [Database_Security_Implementation_Report.md](Database_Security_Implementation_Report.md)
+- Suspicious activity
+- Admin-only access
 
 ---
 
-## 🎨 Customization
+## 🐛 Troubleshooting
 
-### Adding Custom Visualizations
+| Issue | Solution |
+|-------|----------|
+| **Can't connect to MySQL** | Check MySQL is running: `services.msc` (Windows) |
+| **Access denied** | Verify credentials in `app.py` lines 98-103 |
+| **Unknown database** | Create database: `CREATE DATABASE ecommerce_db;` |
+| **No tables found** | Import schema: `mysql ... < normal_Schema_MySQL.sql` |
+| **No views for role** | The views are lowercase (e.g., `activedeliveryview`) |
+| **Audit tables not visible** | Click dropdown and scroll to find `*_audit` tables |
+| **Foreign key constraint** | Create parent record first (e.g., customer before order) |
 
-Want to add your own charts? Follow this template:
-
-```python
-def viz_your_custom_chart():
-    """Your custom visualization"""
-    st.subheader("📊 Your Chart Title")
-
-    try:
-        engine = get_engine()
-        query = text("""
-            SELECT column1, COUNT(*) as count
-            FROM your_table
-            GROUP BY column1
-        """)
-
-        with engine.connect() as conn:
-            df = pd.read_sql(query, conn)
-
-        if not df.empty:
-            fig = px.bar(df, x='column1', y='count',
-                        title='Your Chart Title')
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No data available")
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
-```
-
-Then add it to the visualization selector in the `main()` function around line 746.
-
-### Connecting to a Different Database
-
-You can use this dashboard with any MySQL database! Just:
-
-1. Update `MYSQL_CONFIG` in `app.py`:
-   ```python
-   MYSQL_CONFIG = {
-       'host': 'your-host',           # e.g., 'db.example.com'
-       'port': 3306,                  # default MySQL port
-       'user': 'your-username',
-       'password': 'your-password',
-       'database': 'your-database'
-   }
-   ```
-
-2. The dashboard will automatically:
-   - Detect all tables
-   - Identify primary keys
-   - Recognize column types
-   - Generate appropriate forms
+**Clear cache:** Press `C` in browser or restart dashboard
 
 ---
 
 ## 📊 Technical Details
 
 ### Dependencies
-
 ```
-streamlit>=1.28.0     # Web dashboard framework
+streamlit>=1.28.0     # Web framework
 pandas>=2.0.0         # Data manipulation
-plotly>=5.17.0        # Interactive visualizations
+plotly>=5.17.0        # Visualizations
 sqlalchemy>=2.0.0     # Database ORM
-pymysql>=1.1.0        # MySQL database driver
-cryptography>=41.0.0  # Secure connections
+pymysql>=1.1.0        # MySQL driver
 ```
 
-### Architecture Highlights
-
-- **Cached Database Connection**: Uses `@st.cache_resource` for performance
-- **Connection Pooling**: SQLAlchemy manages connection pool automatically
-- **Parameterized Queries**: All SQL uses `:placeholder` format to prevent injection
-- **URL-Encoded Passwords**: Special characters in passwords are properly handled
-- **Responsive Design**: Wide layout optimized for data-heavy operations
-
-### Browser Compatibility
-
-Tested and working on:
-- ✅ Google Chrome (recommended)
-- ✅ Mozilla Firefox
-- ✅ Microsoft Edge
-- ✅ Safari
+### Architecture
+- Cached database connections (`@st.cache_resource`)
+- SQLAlchemy connection pooling
+- Parameterized queries for security
+- Auto-schema detection
+- Responsive wide layout
 
 ---
 
-## 📈 Performance Tips
+## 🔄 Recent Updates (v2.0)
 
-1. **Add Database Indexes**: Index frequently queried columns
-   ```sql
-   CREATE INDEX idx_customer_email ON customer(Email);
-   ```
-
-2. **Limit Large Tables**: For tables with millions of rows, consider adding pagination
-
-3. **Optimize Visualizations**: Use SQL aggregations instead of fetching all data
-
-4. **Monitor Connection Pool**: SQLAlchemy handles this, but watch for connection leaks
+- ✅ **View Data Mode** - Access role-specific database views with search/export
+- ✅ **Audit Trail Access** - Admin quick access panel for audit tables
+- ✅ **Security Logs** - Comprehensive security event tracking
+- ✅ **Improved RBAC** - Table and view permissions per role
+- ✅ **View Names** - Fixed lowercase view name handling
+- ✅ **Documentation** - Added VIEW_ACCESS_GUIDE.md and AUDIT_TRAIL_GUIDE.md
 
 ---
 
-## 🔄 Updates and Maintenance
+## 📖 Additional Documentation
 
-### Updating Dependencies
+- **View Access Guide:** [VIEW_ACCESS_GUIDE.md](VIEW_ACCESS_GUIDE.md) - How to use View Data mode
+- **Audit Trail Guide:** [AUDIT_TRAIL_GUIDE.md](AUDIT_TRAIL_GUIDE.md) - Admin audit trail access
+- **Security Report:** [Database_Security_Implementation_Report.md](Database_Security_Implementation_Report.md)
+- **Dashboard Details:** [README_DASHBOARD.md](README_DASHBOARD.md)
 
-```bash
-pip install --upgrade -r requirements.txt
+---
+
+## 🎨 Customization
+
+### Connect to Different Database
+Update `MYSQL_CONFIG` in `app.py`:
+```python
+MYSQL_CONFIG = {
+    'host': 'your-host',
+    'database': 'your-database',
+    # ...
+}
 ```
-
-### Backing Up Your Database
-
-```bash
-# Full backup
-mysqldump -u root -p ecommerce_db > backup_$(date +%Y%m%d).sql
-
-# Restore from backup
-mysql -u root -p ecommerce_db < backup_20240315.sql
-```
-
-### Database Migration
-
-If you update your schema:
-1. The dashboard auto-detects changes on restart
-2. No code modifications needed!
-3. Just restart: `python -m streamlit run app.py`
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📝 License
-
-This project is created for educational purposes. Feel free to use and modify.
+Dashboard auto-detects tables, columns, and generates forms!
 
 ---
 
 ## 🆘 Support
 
-Need help? Try these resources:
-
-1. **Error messages**: Most errors include helpful hints
-2. **Troubleshooting section**: See above for common issues
-3. **Setup guide**: [SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)
-4. **Security docs**: [Database_Security_Implementation_Report.md](Database_Security_Implementation_Report.md)
-
----
-
-## 🎓 Learning Resources
-
-New to databases? Check these out:
-
-- [MySQL Documentation](https://dev.mysql.com/doc/)
-- [Streamlit Documentation](https://docs.streamlit.io/)
-- [SQLAlchemy Tutorial](https://docs.sqlalchemy.org/en/20/tutorial/)
-- [Plotly Documentation](https://plotly.com/python/)
+**Error messages include hints!** Also check:
+1. Troubleshooting section above
+2. [VIEW_ACCESS_GUIDE.md](VIEW_ACCESS_GUIDE.md)
+3. [AUDIT_TRAIL_GUIDE.md](AUDIT_TRAIL_GUIDE.md)
+4. Error logs in MySQL
 
 ---
 
-## ⭐ Acknowledgments
+## 📝 License
 
-Built with amazing open-source technologies:
-- **Streamlit** for the incredible web framework
-- **SQLAlchemy** for powerful ORM capabilities
-- **Plotly** for beautiful interactive charts
-- **Pandas** for data manipulation
-- **PyMySQL** for MySQL connectivity
+Created for educational purposes. Free to use and modify.
 
 ---
 
 <div align="center">
 
-**🛒 E-Commerce Database Management Dashboard**
+**🛒 E-Commerce Database Management Dashboard v2.0**
 
 Built with ❤️ using Streamlit, SQLAlchemy, and MySQL
 
-[Get Started](#-quick-start) • [Documentation](#-documentation) • [Support](#-support)
+[Quick Start](#-quick-start) • [Features](#-main-features) • [Setup](#-setup-guide) • [Documentation](#-additional-documentation)
 
 ---
 
-*Ready to manage your database?* 🚀 **Run `run_dashboard.bat` or `python -m streamlit run app.py`**
+*Ready to manage your database?* 🚀
+
+**Run:** `run_dashboard.bat` or `streamlit run app.py`
+
+**Login as:** `admin_user` / `SecurePass123!`
 
 </div>
