@@ -10,6 +10,11 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from sqlalchemy import create_engine, text, inspect
 import re
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # =====================================================
 # ROLE-BASED ACCESS CONTROL CONFIGURATION
@@ -94,13 +99,13 @@ ROLE_PERMISSIONS = {
 # DATABASE CONNECTION & HELPER FUNCTIONS
 # =====================================================
 
-# MySQL Configuration for admin (used only for login verification)
+# MySQL Configuration - loaded from environment variables
 MYSQL_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': 'MySQL@2025',
-    'database': 'ecommerce_db'
+    'host': os.getenv('MYSQL_HOST', 'localhost'),
+    'port': int(os.getenv('MYSQL_PORT', 3306)),
+    'user': os.getenv('MYSQL_USER', 'root'),
+    'password': os.getenv('MYSQL_PASSWORD', ''),
+    'database': os.getenv('MYSQL_DATABASE', 'ecommerce_db')
 }
 
 def get_engine(username=None, password=None):
@@ -659,16 +664,27 @@ def viz_customer_age_distribution():
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            # Calculate ages
-            df['Age'] = df['DOB'].apply(lambda x: (datetime.now() - pd.to_datetime(x)).days // 365)
+        if not df.empty and len(df) > 0:
+            # Calculate ages with proper date handling
+            df['DOB'] = pd.to_datetime(df['DOB'], errors='coerce')
+            df = df.dropna(subset=['DOB'])  # Remove invalid dates
 
-            fig = px.histogram(df, x='Age', nbins=20, title='Customer Age Distribution',
-                             labels={'Age': 'Age (years)', 'count': 'Number of Customers'})
-            fig.update_traces(marker_color='lightblue', marker_line_color='darkblue', marker_line_width=1.5)
-            st.plotly_chart(fig, use_container_width=True)
+            if len(df) > 0:
+                df['Age'] = df['DOB'].apply(lambda x: (datetime.now() - x).days // 365)
+                # Filter out unrealistic ages
+                df = df[(df['Age'] >= 0) & (df['Age'] <= 120)]
 
-            st.metric("Average Age", f"{df['Age'].mean():.1f} years")
+                if len(df) > 0:
+                    fig = px.histogram(df, x='Age', nbins=20, title='Customer Age Distribution',
+                                     labels={'Age': 'Age (years)', 'count': 'Number of Customers'})
+                    fig.update_traces(marker_color='lightblue', marker_line_color='darkblue', marker_line_width=1.5)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    st.metric("Average Age", f"{df['Age'].mean():.1f} years")
+                else:
+                    st.info("No valid age data available")
+            else:
+                st.info("No valid customer DOB data available")
         else:
             st.info("No customer data available")
     except Exception as e:
@@ -691,17 +707,25 @@ def viz_customer_growth():
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            df['RegDate'] = pd.to_datetime(df['RegDate'])
-            df['CumulativeCustomers'] = df['CustomerCount'].cumsum()
+        if not df.empty and len(df) > 0:
+            # Convert dates with error handling
+            df['RegDate'] = pd.to_datetime(df['RegDate'], errors='coerce')
+            df = df.dropna(subset=['RegDate'])
 
-            fig = px.line(df, x='RegDate', y='CumulativeCustomers',
-                         title='Cumulative Customer Growth',
-                         labels={'RegDate': 'Date', 'CumulativeCustomers': 'Total Customers'})
-            fig.update_traces(line_color='green', line_width=3)
-            st.plotly_chart(fig, use_container_width=True)
+            if len(df) > 0:
+                # Ensure CustomerCount is numeric
+                df['CustomerCount'] = pd.to_numeric(df['CustomerCount'], errors='coerce').fillna(0)
+                df['CumulativeCustomers'] = df['CustomerCount'].cumsum()
 
-            st.metric("Total Customers", int(df['CumulativeCustomers'].iloc[-1]))
+                fig = px.line(df, x='RegDate', y='CumulativeCustomers',
+                             title='Cumulative Customer Growth',
+                             labels={'RegDate': 'Date', 'CumulativeCustomers': 'Total Customers'})
+                fig.update_traces(line_color='green', line_width=3)
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.metric("Total Customers", int(df['CumulativeCustomers'].iloc[-1]))
+            else:
+                st.info("No valid customer registration data available")
         else:
             st.info("No customer registration data available")
     except Exception as e:
@@ -718,6 +742,7 @@ def viz_product_sales():
                    COALESCE(SUM(op.Quantity), 0) as TotalSold
             FROM product p
             LEFT JOIN orderProduct op ON p.ProductID = op.ProductID
+            WHERE p.ProductName IS NOT NULL
             GROUP BY p.ProductID, p.ProductName
             ORDER BY TotalSold DESC
             LIMIT 20
@@ -726,17 +751,26 @@ def viz_product_sales():
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            fig = px.bar(df, x='ProductName', y='TotalSold',
-                        title='Top 20 Products by Sales',
-                        labels={'ProductName': 'Product', 'TotalSold': 'Total Units Sold'},
-                        color='TotalSold',
-                        color_continuous_scale='Blues')
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty and len(df) > 0:
+            # Ensure TotalSold is numeric
+            df['TotalSold'] = pd.to_numeric(df['TotalSold'], errors='coerce').fillna(0)
 
-            col1, col2 = st.columns(2)
-            col1.metric("Total Products", len(df))
-            col2.metric("Total Units Sold", int(df['TotalSold'].sum()))
+            # Only create chart if we have data
+            if len(df) > 0:
+                fig = px.bar(df, x='ProductName', y='TotalSold',
+                            title='Top 20 Products by Sales',
+                            labels={'ProductName': 'Product', 'TotalSold': 'Total Units Sold'},
+                            color='TotalSold',
+                            color_continuous_scale='Blues')
+                # Rotate x-axis labels for better readability
+                fig.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+
+                col1, col2 = st.columns(2)
+                col1.metric("Total Products", len(df))
+                col2.metric("Total Units Sold", int(df['TotalSold'].sum()))
+            else:
+                st.info("No valid product sales data available")
         else:
             st.info("No product sales data available")
     except Exception as e:
@@ -751,24 +785,35 @@ def viz_order_distribution():
         query = text("""
             SELECT OrderDate, TotalAmount, ShippingFee
             FROM orders
+            WHERE OrderDate IS NOT NULL AND TotalAmount IS NOT NULL
             ORDER BY OrderDate
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            df['OrderDate'] = pd.to_datetime(df['OrderDate'])
+        if not df.empty and len(df) > 0:
+            # Convert dates with error handling
+            df['OrderDate'] = pd.to_datetime(df['OrderDate'], errors='coerce')
+            df = df.dropna(subset=['OrderDate', 'TotalAmount'])
 
-            fig = px.scatter(df, x='OrderDate', y='TotalAmount',
-                           size='ShippingFee', title='Order Amount Over Time',
-                           labels={'OrderDate': 'Date', 'TotalAmount': 'Order Amount ($)'})
-            st.plotly_chart(fig, use_container_width=True)
+            # Ensure ShippingFee is numeric and handle nulls
+            df['ShippingFee'] = pd.to_numeric(df['ShippingFee'], errors='coerce').fillna(0)
+            # Ensure ShippingFee is positive for size parameter
+            df['ShippingFee'] = df['ShippingFee'].abs() + 1  # Add 1 to avoid zero size
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Orders", len(df))
-            col2.metric("Avg Order Value", f"${df['TotalAmount'].mean():.2f}")
-            col3.metric("Total Revenue", f"${df['TotalAmount'].sum():.2f}")
+            if len(df) > 0:
+                fig = px.scatter(df, x='OrderDate', y='TotalAmount',
+                               size='ShippingFee', title='Order Amount Over Time',
+                               labels={'OrderDate': 'Date', 'TotalAmount': 'Order Amount ($)'})
+                st.plotly_chart(fig, use_container_width=True)
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Orders", len(df))
+                col2.metric("Avg Order Value", f"${df['TotalAmount'].mean():.2f}")
+                col3.metric("Total Revenue", f"${df['TotalAmount'].sum():.2f}")
+            else:
+                st.info("No valid order data available")
         else:
             st.info("No order data available")
     except Exception as e:
@@ -783,19 +828,28 @@ def viz_payment_status():
         query = text("""
             SELECT PaymentStatus, COUNT(*) as Count, SUM(Amount) as TotalAmount
             FROM payment
+            WHERE PaymentStatus IS NOT NULL
             GROUP BY PaymentStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            fig = px.pie(df, values='Count', names='PaymentStatus',
-                        title='Payment Status Distribution',
-                        color_discrete_sequence=px.colors.sequential.RdBu)
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty and len(df) > 0:
+            # Ensure numeric columns are properly typed
+            df['Count'] = pd.to_numeric(df['Count'], errors='coerce').fillna(0)
+            df['TotalAmount'] = pd.to_numeric(df['TotalAmount'], errors='coerce').fillna(0)
 
-            st.dataframe(df, use_container_width=True)
+            # Only show chart if we have valid data
+            if df['Count'].sum() > 0:
+                fig = px.pie(df, values='Count', names='PaymentStatus',
+                            title='Payment Status Distribution',
+                            color_discrete_sequence=px.colors.sequential.RdBu)
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No valid payment count data available")
         else:
             st.info("No payment data available")
     except Exception as e:
@@ -810,19 +864,26 @@ def viz_order_status():
         query = text("""
             SELECT OrderStatus, COUNT(*) as Count
             FROM orders
+            WHERE OrderStatus IS NOT NULL
             GROUP BY OrderStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            fig = px.bar(df, x='OrderStatus', y='Count',
-                        title='Order Status Distribution',
-                        labels={'OrderStatus': 'Status', 'Count': 'Number of Orders'},
-                        color='Count',
-                        color_continuous_scale='Viridis')
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty and len(df) > 0:
+            # Ensure Count is numeric
+            df['Count'] = pd.to_numeric(df['Count'], errors='coerce').fillna(0)
+
+            if df['Count'].sum() > 0:
+                fig = px.bar(df, x='OrderStatus', y='Count',
+                            title='Order Status Distribution',
+                            labels={'OrderStatus': 'Status', 'Count': 'Number of Orders'},
+                            color='Count',
+                            color_continuous_scale='Viridis')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No valid order status count data available")
         else:
             st.info("No order data available")
     except Exception as e:
@@ -837,16 +898,23 @@ def viz_stock_status():
         query = text("""
             SELECT StockStatus, COUNT(*) as Count
             FROM product
+            WHERE StockStatus IS NOT NULL
             GROUP BY StockStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            fig = px.pie(df, values='Count', names='StockStatus',
-                        title='Product Stock Status Distribution')
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty and len(df) > 0:
+            # Ensure Count is numeric
+            df['Count'] = pd.to_numeric(df['Count'], errors='coerce').fillna(0)
+
+            if df['Count'].sum() > 0:
+                fig = px.pie(df, values='Count', names='StockStatus',
+                            title='Product Stock Status Distribution')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No valid stock status count data available")
         else:
             st.info("No product stock data available")
     except Exception as e:
@@ -861,18 +929,25 @@ def viz_customer_by_status():
         query = text("""
             SELECT AccountStatus, COUNT(*) as Count
             FROM customer
+            WHERE AccountStatus IS NOT NULL
             GROUP BY AccountStatus
         """)
 
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            fig = px.bar(df, x='AccountStatus', y='Count',
-                        title='Customer Account Status Distribution',
-                        color='AccountStatus',
-                        color_discrete_sequence=px.colors.qualitative.Set2)
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty and len(df) > 0:
+            # Ensure Count is numeric
+            df['Count'] = pd.to_numeric(df['Count'], errors='coerce').fillna(0)
+
+            if df['Count'].sum() > 0:
+                fig = px.bar(df, x='AccountStatus', y='Count',
+                            title='Customer Account Status Distribution',
+                            color='AccountStatus',
+                            color_discrete_sequence=px.colors.qualitative.Set2)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No valid account status count data available")
         else:
             st.info("No customer data available")
     except Exception as e:

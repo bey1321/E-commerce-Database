@@ -192,21 +192,21 @@ After login, the sidebar shows:
 ## Testing Role Permissions
 
 ### Test Delivery Coordinator (Previously Had Bug)
-1. Login as: `delivery_coordinator` / `DeliveryPass678!`
+1. Login as: `delivery_coordinator` (with password from userAccountCreation.sql)
 2. Select table: `address`
 3. Expected: Only "Read" operation visible
 4. Previous Bug: "Update" was visible but failed with MySQL error
 5. Fixed: "Update" no longer appears in the UI for address table
 
 ### Test Sales Manager
-1. Login as: `sales_manager` / `SalesPass456!`
+1. Login as: `sales_manager` (with password from userAccountCreation.sql)
 2. Select table: `orders`
 3. Expected: "Read" and "Update" operations visible
 4. Select table: `customer`
 5. Expected: Only "Read" operation visible
 
 ### Test Warehouse Staff
-1. Login as: `warehouse_staff` / `WarehousePass012!`
+1. Login as: `warehouse_staff` (with password from userAccountCreation.sql)
 2. Select table: `supplierProduct`
 3. Expected: "Create", "Read", and "Update" visible
 4. Select table: `product`

@@ -7,15 +7,17 @@ Streamlit-based database management dashboard with Role-Based Access Control, da
 ## 🚀 Quick Start
 
 ### 1. Configure MySQL Connection
-Edit `app.py` (lines 98-103):
-```python
-MYSQL_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': 'MySQL@2025',
-    'database': 'ecommerce_db'
-}
+Create a `.env` file in the project root:
+```bash
+# Copy .env.example to .env
+cp .env.example .env
+
+# Edit .env with your MySQL credentials
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=ecommerce_db
 ```
 
 ### 2. Launch Dashboard
@@ -28,14 +30,16 @@ streamlit run app.py
 ```
 
 ### 3. Login
+Use the credentials configured in `security/userAccountCreation.sql`:
 ```
-Admin: admin_user / SecurePass123!
-Sales: sales_manager / SalesPass456!
-CS: customer_service / CSPass789!
-Warehouse: warehouse_staff / WarehousePass012!
-Marketing: marketing_team / MarketPass345!
-Delivery: delivery_coordinator / DeliveryPass678!
+Admin: admin_user
+Sales: sales_manager
+CS: customer_service
+Warehouse: warehouse_staff
+Marketing: marketing_team
+Delivery: delivery_coordinator
 ```
+**Note:** Passwords are set in the SQL file - change them for production use!
 
 Dashboard opens at: **http://localhost:8501**
 
@@ -147,7 +151,7 @@ When logged in as `admin_user`, you'll see a **Quick Access** panel with buttons
 
 ### Example 1: View Customer Orders (Sales Manager)
 ```
-1. Login: sales_manager / SalesPass456!
+1. Login: sales_manager (with your configured password)
 2. Select: View Data mode
 3. Choose: ordersummaryview
 4. Search: Filter by customer name or order ID
@@ -156,7 +160,7 @@ When logged in as `admin_user`, you'll see a **Quick Access** panel with buttons
 
 ### Example 2: Manage Returns (Customer Service)
 ```
-1. Login: customer_service / CSPass789!
+1. Login: customer_service (with your configured password)
 2. Select: View Data mode
 3. Choose: returnmanagementview
 4. Search: Find specific return by ReturnID
@@ -165,7 +169,7 @@ When logged in as `admin_user`, you'll see a **Quick Access** panel with buttons
 
 ### Example 3: Monitor Active Deliveries (Delivery Coordinator)
 ```
-1. Login: delivery_coordinator / DeliveryPass678!
+1. Login: delivery_coordinator (with your configured password)
 2. Select: View Data mode
 3. Choose: activedeliveryview
 4. View: All pending/in-transit deliveries
@@ -174,7 +178,7 @@ When logged in as `admin_user`, you'll see a **Quick Access** panel with buttons
 
 ### Example 4: Review Audit Logs (Admin)
 ```
-1. Login: admin_user / SecurePass123!
+1. Login: admin_user (with your configured password)
 2. Select: CRUD Operations mode
 3. Expand: Quick Access panel
 4. Click: customer_audit button

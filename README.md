@@ -35,14 +35,10 @@ Complete web-based interface for managing MySQL e-commerce databases with enterp
 git clone <repository-url>
 cd new_database_project
 
-# 2. Configure database connection in app.py (lines 98-103)
-MYSQL_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': 'MySQL@2025',
-    'database': 'ecommerce_db'
-}
+# 2. Configure database connection
+# Copy .env.example to .env and update with your credentials
+cp .env.example .env
+# Edit .env with your MySQL credentials
 
 # 3. Install and run
 pip install -r requirements.txt
@@ -155,16 +151,18 @@ mysql -u root -p ecommerce_db < security/SecurityLog.sql
 
 ### 3. Login
 
-Use these credentials (set in `security/userAccountCreation.sql`):
+Use the credentials you set in `security/userAccountCreation.sql`. Default usernames are:
 
 ```
-Admin: admin_user / SecurePass123!
-Sales: sales_manager / SalesPass456!
-CS: customer_service / CSPass789!
-Warehouse: warehouse_staff / WarehousePass012!
-Marketing: marketing_team / MarketPass345!
-Delivery: delivery_coordinator / DeliveryPass678!
+Admin: admin_user
+Sales: sales_manager
+CS: customer_service
+Warehouse: warehouse_staff
+Marketing: marketing_team
+Delivery: delivery_coordinator
 ```
+
+**Note:** Change the default passwords in `security/userAccountCreation.sql` before running it in production!
 
 ---
 
@@ -257,7 +255,7 @@ new_database_project/
 | Issue | Solution |
 |-------|----------|
 | **Can't connect to MySQL** | Check MySQL is running: `services.msc` (Windows) |
-| **Access denied** | Verify credentials in `app.py` lines 98-103 |
+| **Access denied** | Verify credentials in `.env` file |
 | **Unknown database** | Create database: `CREATE DATABASE ecommerce_db;` |
 | **No tables found** | Import schema: `mysql ... < normal_Schema_MySQL.sql` |
 | **No views for role** | The views are lowercase (e.g., `activedeliveryview`) |
@@ -311,13 +309,13 @@ pymysql>=1.1.0        # MySQL driver
 ## 🎨 Customization
 
 ### Connect to Different Database
-Update `MYSQL_CONFIG` in `app.py`:
-```python
-MYSQL_CONFIG = {
-    'host': 'your-host',
-    'database': 'your-database',
-    # ...
-}
+Update the `.env` file:
+```bash
+MYSQL_HOST=your-host
+MYSQL_PORT=3306
+MYSQL_USER=your-username
+MYSQL_PASSWORD=your-password
+MYSQL_DATABASE=your-database
 ```
 Dashboard auto-detects tables, columns, and generates forms!
 
@@ -353,6 +351,6 @@ Built with ❤️ using Streamlit, SQLAlchemy, and MySQL
 
 **Run:** `run_dashboard.bat` or `streamlit run app.py`
 
-**Login as:** `admin_user` / `SecurePass123!`
+**Login as:** `admin_user` (with password from userAccountCreation.sql)
 
 </div>

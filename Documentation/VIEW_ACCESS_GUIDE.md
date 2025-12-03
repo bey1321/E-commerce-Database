@@ -69,7 +69,7 @@ The dashboard now includes a **"View Data"** mode alongside the existing "CRUD O
 ## How to Use Views in the Dashboard
 
 ### Step 1: Login
-Log in with your role credentials (e.g., `sales_manager` / `SalesPass456!`)
+Log in with your role credentials (e.g., `sales_manager` with password from userAccountCreation.sql)
 
 ### Step 2: Select "View Data" Mode
 In the sidebar, select **"View Data"** from the mode selection radio buttons.
